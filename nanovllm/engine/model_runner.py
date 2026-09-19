@@ -1,4 +1,5 @@
 import pickle
+import warnings
 import torch
 import torch.distributed as dist
 from multiprocessing.synchronize import Event
@@ -8,6 +9,7 @@ from nanovllm.config import Config
 from nanovllm.engine.sequence import Sequence
 from nanovllm.models.qwen3 import Qwen3ForCausalLM
 from nanovllm.layers.sampler import Sampler
+from nanovllm.layers.attention import USE_FLASH_ATTENTION
 from nanovllm.utils.context import set_context, get_context, reset_context
 from nanovllm.utils.loader import load_model
 
@@ -18,12 +20,17 @@ class ModelRunner:
         self.config = config
         hf_config = config.hf_config
         self.block_size = config.kvcache_block_size
-        self.enforce_eager = config.enforce_eager
+        self.enforce_eager = config.enforce_eager or not USE_FLASH_ATTENTION
+        if not USE_FLASH_ATTENTION:
+            warnings.warn("Using eager PyTorch SDPA attention (FlashAttention unavailable).", stacklevel=2)
         self.world_size = config.tensor_parallel_size
         self.rank = rank
         self.event = event
 
-        dist.init_process_group("nccl", "tcp://localhost:2333", world_size=self.world_size, rank=rank)
+        if self.world_size > 1:
+            if not dist.is_nccl_available():
+                raise RuntimeError("Tensor parallelism requires a PyTorch build with NCCL support.")
+            dist.init_process_group("nccl", "tcp://localhost:2333", world_size=self.world_size, rank=rank)
         torch.cuda.set_device(rank)
         default_dtype = torch.get_default_dtype()
         torch.set_default_dtype(hf_config.dtype)
@@ -56,7 +63,8 @@ class ModelRunner:
         if not self.enforce_eager:
             del self.graphs, self.graph_pool
         torch.cuda.synchronize()
-        dist.destroy_process_group()
+        if self.world_size > 1:
+            dist.destroy_process_group()
 
     def loop(self):
         while True:

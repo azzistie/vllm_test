@@ -1,5 +1,6 @@
 from functools import lru_cache
 import torch
+from nanovllm.utils.compat import compile_if_available
 from torch import nn
 
 
@@ -34,7 +35,7 @@ class RotaryEmbedding(nn.Module):
         cache = torch.cat((cos, sin), dim=-1).unsqueeze_(1)
         self.register_buffer("cos_sin_cache", cache, persistent=False)
 
-    @torch.compile
+    @compile_if_available
     def forward(
         self,
         positions: torch.Tensor,

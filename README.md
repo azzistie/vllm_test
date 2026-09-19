@@ -24,6 +24,23 @@ pip install git+https://github.com/GeeeekExplorer/nano-vllm.git
 
 ## Model Download
 
+### Native Windows (single NVIDIA GPU)
+
+Install a CUDA-enabled PyTorch build suitable for your GPU, then install this
+project with `python -m pip install -e .`. Windows uses eager PyTorch SDPA
+attention with the same scheduler and paged KV cache; Triton, FlashAttention,
+and NCCL are not required for single-GPU inference. This compatibility path
+does not use CUDA graphs and is slower than the optimized Linux backend.
+Tensor parallelism still requires NCCL.
+
+After downloading the model below, run the example from PowerShell:
+
+```powershell
+.\.venv\Scripts\python.exe example.py
+```
+
+The example expects the model at `$HOME/huggingface/Qwen3-0.6B/`.
+
 To download the model weights manually, use the following command:
 ```bash
 huggingface-cli download --resume-download Qwen/Qwen3-0.6B \
