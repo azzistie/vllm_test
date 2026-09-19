@@ -5,6 +5,12 @@ from transformers import AutoTokenizer
 '''
 test
 '''
+
+'''
+test
+'''
+
+
 def main():
     path = os.path.expanduser("~/huggingface/Qwen3-0.6B/")
     tokenizer = AutoTokenizer.from_pretrained(path)
